@@ -1,13 +1,65 @@
-from django.shortcuts import render
-
+from django.shortcuts import get_object_or_404, render, redirect
+from django.db.models import Q
 from contact.models import Contact
-
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 def view(request):
-    contacts = Contact.objects.all().filter(show=True).order_by('-id')[:10]
-    return render(request, 'contact/index.html', {'contacts': contacts})
+    contacts = Contact.objects \
+        .filter(show=True) \
+        .order_by('-id')
+    
+    paginator = Paginator(contacts, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'site_title': 'Contatos - '
+    }
+
+
+    return render(
+        request,
+        'contact/index.html',
+        context
+    )
 
 
 def contact(request, contact_id):
     single_contact = Contact.objects.get(id=contact_id)
     return render(request, 'contact/contact.html', {'contact': single_contact})
+
+
+
+def search(request):
+    search_value = request.GET.get('search', '').strip()
+
+    if search_value == '':
+        return redirect('contact:index')
+    
+
+    contacts = Contact.objects \
+        .filter(show=True) \
+        .filter(
+            Q(first_name__icontains=search_value) |
+            Q(last_name__icontains=search_value) |
+            Q(email__icontains=search_value) |
+            Q(phone_number__icontains=search_value)
+        )\
+        .order_by('-id')
+    
+    paginator = Paginator(contacts, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'site_title': 'Search - ',
+        'search_value': search_value,
+    }
+
+    return render(
+        request,
+        'contact/index.html',
+        context
+    )
